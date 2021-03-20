@@ -1,0 +1,150 @@
+<!--@Author : co25572 -->
+<project name="script-master" default="autobuild" basedir=".">
+	<property environment="env" />
+	<property name="mvn.install.skip.test" value="mvn install -Dmaven.test.skip=true" />
+	<property name="mvn.install" value="mvn install" />
+	<property name="mvn.unitTest.cmd" value="mvn test" />
+	<property name="mvn.surefireReport.cmd" value="mvn surefire-report:report" />
+	<property name="mvn.site.cmd" value="mvn cobertura:cobertura surefire-report:report-only site -DgenerateReports=false" />
+	<property name="exec.jar.cmd" value="java -jar script-master-0.0.1-SNAPSHOT.jar" />
+	<property name="stage.dir" value="stage" />
+
+	<target name="autotest" if="exec.uniTest"
+		depends="execUniTest, initTest, mvn_windows_unitTest, mvn_unix_unitTest">
+		<copy todir="${basedir}/junit">
+			<fileset dir="${basedir}/${ant.project.name}/target">
+				<include name="site/" />
+			</fileset>
+		</copy>
+		<copy todir="${basedir}/junit">
+			<fileset dir="${basedir}/${ant.project.name}/target">
+				<include name="cobertura/" />
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="execUniTest">
+		<condition property="exec.uniTest">
+			<and>
+				<isset property="env.unitTest" />
+				<equals arg1="${env.unitTest}" arg2="true" />
+			</and>
+		</condition>
+	</target>
+
+	<target name="execUniTestInWindows">
+		<condition property="exec.uniTest.windows">
+			<and>
+				<isset property="exec.uniTest" />
+				<isset property="isWindows" />
+			</and>
+		</condition>
+	</target>
+
+	<target name="execUniTestInUnix">
+		<condition property="exec.uniTest.unix">
+			<and>
+				<isset property="exec.uniTest" />
+				<isset property="isUnix" />
+			</and>
+		</condition>
+	</target>
+
+	<target name="mvn_windows_unitTest" if="exec.uniTest.windows"
+		depends="execUniTestInWindows">
+		<exec dir="${basedir}/${ant.project.name}/" executable="cmd" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="/c ${mvn.unitTest.cmd}" />
+		</exec>
+		<exec dir="${basedir}/${ant.project.name}/" executable="cmd" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="/c ${mvn.site.cmd}" />
+		</exec>
+	</target>
+
+	<target name="mvn_unix_unitTest" if="exec.uniTest.unix" depends="execUniTestInUnix">
+		<exec dir="${basedir}/${ant.project.name}/" executable="sh" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="-c '${mvn.unitTest.cmd}'" />
+		</exec>
+		<exec dir="${basedir}/${ant.project.name}/" executable="sh" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="-c '${mvn.site.cmd}'" />
+		</exec>
+	</target>
+
+	<target name="initTest" if="exec.uniTest">
+		<tstamp />
+		<delete dir="junit" />
+		<mkdir dir="junit" />
+	</target>
+
+	<target name="init">
+		<tstamp />
+		<delete dir="stage" />
+		<delete dir="junit" />
+		<mkdir dir="stage" />
+	</target>
+
+	<!-- Validating the OS where the execution trigger -->
+	<condition property="isWindows">
+		<os family="windows" />
+	</condition>
+	<condition property="isUnix">
+		<os family="unix" />
+	</condition>
+
+	<target name="Mavenbuild" depends="init, mvn_windows, mvn_unix" />
+
+	<target name="mvn_windows" depends="mvn_windows_clean" if="isWindows">
+		<echo>Running ${mvn.install.skip.test} command for build...</echo>
+		<exec dir="${basedir}/${ant.project.name}/" executable="cmd" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="/c ${mvn.install.skip.test}" />
+		</exec>
+	</target>
+
+	<target name="mvn_windows_clean" if="isWindows">
+		<exec dir="${basedir}/${ant.project.name}/" executable="cmd" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="/c mvn clean" />
+		</exec>
+	</target>
+
+	<target name="mvn_unix" depends="mvn_unix_clean" if="isUnix">
+		<echo>Running ${mvn.install.skip.test} command for build...</echo>
+		<exec dir="${basedir}/${ant.project.name}/" executable="sh" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="-c '${mvn.install.skip.test}'" />
+		</exec>
+	</target>
+
+	<target name="mvn_unix_clean" if="isUnix">
+		<exec dir="${basedir}/${ant.project.name}/" executable="sh" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="-c 'mvn clean'" />
+		</exec>
+	</target>
+
+	<target name="autobuild" depends="Mavenbuild">
+		<copy todir="${basedir}/${stage.dir}" flatten="true">
+			<fileset dir="${basedir}/${ant.project.name}">
+				<include name="/target/*.jar" />
+				<type type="file" />
+			</fileset>
+		</copy>
+	</target>
+	
+	<target name="runScriptMaster" depends="autobuild" if="isWindows">
+	<echo>Running ${exec.jar.cmd} command for build...</echo>
+		<exec dir="${basedir}/${stage.dir}" executable="cmd" resultproperty="exe.state"
+			failonerror="true">
+			<arg line="/c ${exec.jar.cmd}" />
+		</exec>
+		
+	<!--<exec executable="/bin/sh">
+    <arg value="-c"/>
+    <arg value="${exec.jar.cmd}"/>
+  </exec>-->
+</target>
+</project>
